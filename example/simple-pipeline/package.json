@@ -1,0 +1,24 @@
+{
+  "name": "simple-pipeline",
+  "version": "1.0.0",
+  "description": "",
+  "author": "Amazon Web Services, Inc.",
+  "contributors": [
+    "Michael S. Fischer"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk",
+    "lint": "eslint . --ext .ts"
+  },
+  "bin": {
+    "pipeline": "bin/pipeline.js"
+  },
+  "dependencies": {
+    "aws-cdk": "^1.47.0",
+    "typescript": "^3.9.5"
+  }
+}
