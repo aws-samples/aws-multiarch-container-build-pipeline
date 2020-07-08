@@ -24,6 +24,9 @@ interface BuildManifestActionProps {
   // Docker image name artifact
   dockerImages: cp.Artifact[]
 
+  // Docker Image Tag, defaults to output of `git describe --tags --always`
+  imageTag?: string
+
   // ECR repository
   imageRepo: ecr.Repository
 }
@@ -45,9 +48,17 @@ export class BuildManifestAction extends actions.CodeBuildAction {
       props.imageRepo.grantPullPush(project.role);
     }
 
+    const environmentVariables: { [name:string]: cb.BuildEnvironmentVariable } = {};
+    if (props.imageTag) {
+      environmentVariables.IMAGE_TAG = {
+        value: props.imageTag
+      };
+    }
+
     super({
       actionName: 'ManifestBuilder',
       project,
+      environmentVariables,
       input: props.source,
       extraInputs: props.dockerImages,
       type: actions.CodeBuildActionType.BUILD
@@ -71,8 +82,10 @@ const createBuildSpec = function(props: BuildManifestActionProps): { [key:string
       },
       build: {
         commands: [
-          `TAG=${props.imageRepo.repositoryUri}:$(git describe --tags --always)`,
-          'echo $TAG',
+          ': ${IMAGE_TAG=$(git describe --tags --always)}', // eslint-disable-line no-template-curly-in-string
+          'test -n "$IMAGE_TAG"', // fail if empty
+          `TAG=${props.imageRepo.repositoryUri}:$IMAGE_TAG`,
+          'echo TAG: $TAG',
           ...dockerPullCommands(props),
           dockerManifestCreateCommand(props)
         ]

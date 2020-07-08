@@ -31,6 +31,9 @@ interface BuildActionProps {
   // ECR repository
   imageRepo: ecr.Repository
 
+  // Docker Image Tag, defaults to output of `git describe --tags --always`
+  imageTag?: string
+
   // Docker build arguments (see `--build-arg`)
   dockerBuildArgs?: {[key:string]:string}
 }
@@ -52,9 +55,17 @@ export class BuildAction extends actions.CodeBuildAction {
       props.imageRepo.grantPullPush(project.role);
     }
 
+    const environmentVariables: { [name:string]: cb.BuildEnvironmentVariable } = {};
+    if (props.imageTag) {
+      environmentVariables.IMAGE_TAG = {
+        value: props.imageTag
+      };
+    }
+
     super({
       actionName: props.arch,
       project,
+      environmentVariables,
       input: props.source,
       outputs: [props.dockerImage],
       type: actions.CodeBuildActionType.BUILD
@@ -73,7 +84,8 @@ const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } 
       },
       build: {
         commands: [
-          'TAG=$(git describe --tags --always)',
+          ': ${IMAGE_TAG=$(git describe --tags --always)}', // eslint-disable-line no-template-curly-in-string
+          'test -n "$IMAGE_TAG"', // fail if empty
           dockerBuildCommand(props),
           dockerPushCommand(props)
         ]
@@ -95,7 +107,7 @@ const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } 
 };
 
 const imageTag = function(props: BuildActionProps): string {
-  return `${props.imageRepo.repositoryUri}:$\{TAG\}-${props.arch}`; // eslint-disable-line no-useless-escape
+  return `${props.imageRepo.repositoryUri}:$\{IMAGE_TAG\}-${props.arch}`; // eslint-disable-line no-useless-escape
 };
 
 const dockerBuildCommand = function(props: BuildActionProps): string {

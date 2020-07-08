@@ -54,13 +54,15 @@ class PipelineStack extends cdk.Stack {
       actionName: 'S3',
       bucket,
       bucketKey: 'source.zip',
-      output: new Artifact()
+      output: new Artifact(),
+      variablesNamespace: 'Source'
     });
 
     new Pipeline(this, 'Pipeline', {
       sourceAction,
       imageRepo,
-      architectures: [Architecture.Arm64, Architecture.X86_64]
+      architectures: [Architecture.Arm64, Architecture.X86_64],
+      imageTag: '#{Source.VersionId}'
     });
   }
 }

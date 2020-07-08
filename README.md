@@ -50,7 +50,7 @@ First, you'll need to build an application using AWS CDK. Your application must
 import the library:
 
 ```ts
-import { Pipeline, Architecture } from 'builder';
+import { Pipeline, Architecture } from 'aws-multiarch-container-build-pipeline';
 ```
 
 ### Source action
@@ -104,16 +104,35 @@ new Pipeline(this, 'Pipeline', {
 
 The following attributes can be passed to the pipeline constructor:
 
-| Attribute           | Description                                                                                                                         | Required? |
-|---------------------|-------------------------------------------------------------------------------------------------------------------------------------|-----------|
-| `sourceAction`      | A CodePipeline source action. Tells the pipeline where to get the source code and is used as the source stage.                      | Yes       |
-| `imageRepo`         | An ECR image repository. Used for storing and fetching images and manifests.                                                        | Yes       |
-| `architectures`     | Array of CPU architectures used for building and testing images. Defaults to `amd64`. Supported values include `amd64` and `arm64`. |           |
-| `buildPath`         | Path inside repository in which `Dockerfile` is located. Defaults to `.`.                                                           |           |
-| `dockerBuildArgs`   | Optional map of Docker build args. Equivalent to passing `--build-arg` to `docker build`.                                           |           |
-| `buildTimeout`      | Build timeout                                                                                                                       |           |
-| `testTimeout`       | Test timeout                                                                                                                        |           |
-| `testBuildSpecPath` | Location of CodeBuild buildspec path used for test stage inside repository. Defaults to `./buildspec-test.yml`.                     |           |
+| Attribute           | Description                                                                                                                                                                   | Required? |
+|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| `sourceAction`      | A CodePipeline source action. Tells the pipeline where to get the source code and is used as the source stage.                                                                | Yes       |
+| `imageRepo`         | An ECR image repository. Used for storing and fetching images and manifests.                                                                                                  | Yes       |
+| `architectures`     | Array of CPU architectures used for building and testing images. Defaults to `amd64`. Supported values include `amd64` and `arm64`.                                           |           |
+| `buildPath`         | Path inside repository in which `Dockerfile` is located. Defaults to `.`.                                                                                                     |           |
+| `dockerBuildArgs`   | Optional map of Docker build args. Equivalent to passing `--build-arg` to `docker build`.                                                                                     |           |
+| `imageTag`          | Tag to apply to generated images. Defaults to output of `git describe --tags --always`. You can use CodePipeline variable substitutions here, such as `'#{Source.CommitId}'`. |           |
+| `buildTimeout`      | Build timeout                                                                                                                                                                 |           |
+| `testTimeout`       | Test timeout                                                                                                                                                                  |           |
+| `testBuildSpecPath` | Location of CodeBuild buildspec path used for test stage inside repository. Defaults to `./buildspec-test.yml`.                                                               |           |
+
+## Notes
+
+By default, the image tag will be either the latest Git tag (if the HEAD commit
+of the branch is tagged), the latest Git commit ID (if there are no tags
+reachable from the HEAD commit), or both (if HEAD is not tagged but a tag is
+reachable from the HEAD commit). This is consistent with best practice.
+
+AWS CodePipeline does not currently include the `.git` folder if you use
+CodeCommit, BitBucket, or GitHub as a source action. This will cause the
+automated tag generation to fail because the full commit history will not be
+accessible. As a workaround, we suggest using an S3 bucket for the source stage
+of the pipeline. Then, use a CodeBuild project to pull the source code from the
+Git repository and simply dump the output to the S3 bucket. This will preserve
+all the Git metadata.
+
+The example project included in this repository has an example of this design for
+reference.
 
 ## Example
 

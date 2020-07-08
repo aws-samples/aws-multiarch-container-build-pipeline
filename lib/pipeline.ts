@@ -37,6 +37,10 @@ interface PipelineProps {
   // Build timeout
   buildTimeout?: cdk.Duration
 
+  // Docker image tag, defaults to value of `git describe --tags --always` if
+  // possible
+  imageTag?: string
+
   // Test timeout
   testTimeout?: cdk.Duration
 
