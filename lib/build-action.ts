@@ -73,8 +73,6 @@ const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } 
       },
       build: {
         commands: [
-          'pwd',
-          'ls -laR',
           'TAG=$(git describe --tags --always)',
           dockerBuildCommand(props),
           dockerPushCommand(props)
