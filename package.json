@@ -13,12 +13,12 @@
     "lint": "eslint . --ext .ts"
   },
   "devDependencies": {
-    "@aws-cdk/assert": "^1.47.0",
+    "@aws-cdk/assert": "^1.50.0",
     "@types/jest": "^25.2.1",
     "@types/node": "10.17.5",
     "@typescript-eslint/eslint-plugin": "^3.4.0",
     "@typescript-eslint/parser": "^3.4.0",
-    "aws-cdk": "^1.47.0",
+    "aws-cdk": "^1.50.0",
     "eslint": "^7.3.1",
     "eslint-config-standard": "^14.1.1",
     "eslint-plugin-import": "^2.21.2",
@@ -31,13 +31,14 @@
     "typescript": "~3.7.2"
   },
   "dependencies": {
-    "@aws-cdk/aws-codebuild": "^1.47.0",
-    "@aws-cdk/aws-codepipeline": "^1.47.0",
-    "@aws-cdk/aws-codepipeline-actions": "^1.47.0",
-    "@aws-cdk/aws-ecr": "^1.47.0",
-    "@aws-cdk/aws-iam": "^1.47.0",
-    "@aws-cdk/aws-s3": "^1.47.0",
-    "@aws-cdk/core": "^1.47.0",
+    "@aws-cdk/aws-codebuild": "^1.50.0",
+    "@aws-cdk/aws-codecommit": "^1.50.0",
+    "@aws-cdk/aws-codepipeline": "^1.50.0",
+    "@aws-cdk/aws-codepipeline-actions": "^1.50.0",
+    "@aws-cdk/aws-ecr": "^1.50.0",
+    "@aws-cdk/aws-iam": "^1.50.0",
+    "@aws-cdk/aws-s3": "^1.50.0",
+    "@aws-cdk/core": "^1.50.0",
     "source-map-support": "^0.5.16"
   }
 }
