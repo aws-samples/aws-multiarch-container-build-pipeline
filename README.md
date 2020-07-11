@@ -46,8 +46,12 @@ The pipeline stages are as follows:
 
 ## Usage
 
-First, you'll need to build an application using AWS CDK. Your application must
-import the library:
+First, you'll need to build an application using AWS CDK. Download the library
+and import it into your CDK application:
+
+```sh
+$ npm install aws-multiarch-container-build-pipeline
+```
 
 ```ts
 import { Pipeline, Architecture } from 'aws-multiarch-container-build-pipeline';
