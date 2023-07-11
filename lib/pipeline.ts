@@ -1,12 +1,13 @@
-import * as cdk from '@aws-cdk/core';
-import * as cp from '@aws-cdk/aws-codepipeline';
-import * as cb from '@aws-cdk/aws-codebuild'; // eslint-disable-line no-unused-vars
-import * as actions from '@aws-cdk/aws-codepipeline-actions'; // eslint-disable-line no-unused-vars
-import * as ecr from '@aws-cdk/aws-ecr'; // eslint-disable-line no-unused-vars
+import { Artifact, Pipeline as CodePipeline } from 'aws-cdk-lib/aws-codepipeline';
+import { CodeBuildAction, CodeStarConnectionsSourceAction, S3SourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
 
 import { BuildAction } from './build-action';
-import { TestAction } from './test-action';
 import { BuildManifestAction } from './build-manifest';
+import { ComputeType } from 'aws-cdk-lib/aws-codebuild';
+import { Construct } from 'constructs';
+import { Duration } from 'aws-cdk-lib';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
+import { TestAction } from './test-action';
 
 export enum Architecture {
   // eslint-disable-next-line no-unused-vars
@@ -20,10 +21,10 @@ const DEFAULT_ARCHITECTURES = [Architecture.X86_64];
 
 interface PipelineProps {
   // A source action
-  sourceAction: actions.BitBucketSourceAction | actions.CodeBuildAction | actions.GitHubSourceAction | actions.S3SourceAction
+  sourceAction: CodeBuildAction | CodeStarConnectionsSourceAction
 
   // ECR repository name
-  imageRepo: ecr.Repository
+  imageRepo: Repository
 
   // architectures to build on, defaults to ['amd64']
   architectures?: Architecture[]
@@ -35,30 +36,30 @@ interface PipelineProps {
   dockerBuildArgs?: {[key:string]:string}
 
   // Build timeout
-  buildTimeout?: cdk.Duration
+  buildTimeout?: Duration
 
   // Docker image tag, defaults to value of `git describe --tags --always` if
   // possible
   imageTag?: string
 
   // Test timeout
-  testTimeout?: cdk.Duration
+  testTimeout?: Duration
 
   // Location of CodeBuild build specification file for test stage, defaults to
   // 'buildspec-test.yml'
   testBuildspecPath?: string
 
   // Compute type used for build process
-  computeType?: cb.ComputeType
+  computeType?: ComputeType
 }
 
-export class Pipeline extends cdk.Construct {
-  public pipeline: cp.Pipeline;
+export class Pipeline extends Construct {
+  public pipeline: CodePipeline;
 
-  constructor(scope: cdk.Construct, id: string, props: PipelineProps) {
+  constructor(scope: Construct, id: string, props: PipelineProps) {
     super(scope, id);
 
-    let sourceArtifact: cp.Artifact;
+    let sourceArtifact: Artifact;
     const sourceArtifacts = props.sourceAction.actionProperties.outputs || [];
     if (sourceArtifacts.length === 1) {
       sourceArtifact = sourceArtifacts[0];
@@ -66,7 +67,7 @@ export class Pipeline extends cdk.Construct {
       throw new Error('Source action must have exactly 1 output defined');
     }
 
-    this.pipeline = new cp.Pipeline(this, 'pipeline', {
+    this.pipeline = new CodePipeline(this, 'pipeline', {
       restartExecutionOnUpdate: true
     });
 
@@ -76,19 +77,15 @@ export class Pipeline extends cdk.Construct {
     });
 
     const buildActions: { [arch:string]: BuildAction } = {};
-    const dockerImageArtifacts: { [arch:string]: cp.Artifact } = {};
     const testActions: { [arch:string]: TestAction } = {};
-    const testOutputs: { [arch:string]: cp.Artifact } = {};
+    const testOutputs: { [arch:string]: Artifact } = {};
 
     for (const arch of props.architectures || DEFAULT_ARCHITECTURES) {
-      dockerImageArtifacts[arch] = new cp.Artifact(`dockerImage_${arch}`
-        .replace(/[^A-Za-z0-9_]/g, ''));
       buildActions[arch] = new BuildAction(this, `BuildAction-${arch}`, {
         ...props,
         arch,
         timeout: props.buildTimeout,
         source: sourceArtifact,
-        dockerImage: dockerImageArtifacts[arch]
       });
     }
 
@@ -98,14 +95,13 @@ export class Pipeline extends cdk.Construct {
     });
 
     for (const arch of props.architectures || DEFAULT_ARCHITECTURES) {
-      testOutputs[arch] = new cp.Artifact(`test_${arch}`
+      testOutputs[arch] = new Artifact(`test_${arch}`
         .replace(/[^A-Za-z0-9_]/g, ''));
       const action = new TestAction(this, `TestAction-${arch}`, {
         ...props,
         arch,
         timeout: props.testTimeout,
         source: sourceArtifact,
-        dockerImage: dockerImageArtifacts[arch]
       });
       testActions[arch] = action;
     }
@@ -121,7 +117,6 @@ export class Pipeline extends cdk.Construct {
         new BuildManifestAction(this, 'BuildManifest', {
           ...props,
           architectures: props.architectures || DEFAULT_ARCHITECTURES,
-          dockerImages: Object.keys(dockerImageArtifacts).map(k => dockerImageArtifacts[k]),
           source: sourceArtifact
         })
       ]

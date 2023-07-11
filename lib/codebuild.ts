@@ -1,8 +1,6 @@
-import * as cb from '@aws-cdk/aws-codebuild';
+import { IBuildImage, LinuxArmBuildImage, LinuxBuildImage } from 'aws-cdk-lib/aws-codebuild';
 
-export const ArchitectureMap: { [architecture:string]: cb.IBuildImage } = {
-  amd64: cb.LinuxBuildImage.AMAZON_LINUX_2_3,
-  arm64: cb.LinuxBuildImage.AMAZON_LINUX_2_ARM
+export const ArchitectureMap: { [architecture:string]: IBuildImage } = {
+  amd64: LinuxBuildImage.AMAZON_LINUX_2_3,
+  arm64: LinuxArmBuildImage.AMAZON_LINUX_2_STANDARD_3_0
 };
-
-export const DOCKER_IMAGE_NAME_FILE = 'dockerImage';

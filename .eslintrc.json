@@ -18,7 +18,8 @@
         "semi": ["error", "always"],
         "space-before-function-paren": ["error", "never"],
         "indent": ["error", 2],
-        "no-new": "off"
+        "no-new": "off",
+        "sort-imports": ["error"]
     },
     "ignorePatterns": ["**/*.d.ts", "**/*.js"]
 }

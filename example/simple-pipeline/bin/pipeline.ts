@@ -1,68 +1,42 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
-import * as cdk from '@aws-cdk/core';
-import { Pipeline, Architecture } from 'aws-multiarch-container-build-pipeline';
-import { Artifact } from '@aws-cdk/aws-codepipeline';
-import * as ecr from '@aws-cdk/aws-ecr';
-import { S3SourceAction } from '@aws-cdk/aws-codepipeline-actions';
-import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3';
-import * as cb from '@aws-cdk/aws-codebuild';
 
-const app = new cdk.App();
+import { App, Stack, StackProps } from 'aws-cdk-lib';
+import { Architecture, Pipeline } from 'aws-multiarch-container-build-pipeline';
 
-class PipelineStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+import { Artifact } from 'aws-cdk-lib/aws-codepipeline';
+import { CodeBuildAction, CodeCommitSourceAction, CodeStarConnectionsSourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
+import { Construct } from 'constructs';
+import { Repository as ImageRepository } from 'aws-cdk-lib/aws-ecr';
+
+const app = new App();
+
+class PipelineStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const imageRepo = new ecr.Repository(this, 'Repository');
-    const bucket = new Bucket(this, 'SourceBucket', {
-      encryption: BucketEncryption.S3_MANAGED,
-      versioned: true
+    const imageRepo = new ImageRepository(this, 'Repository', {
+      repositoryName: 'multiarch-container-build-pipeline-test'
     });
 
-    new cb.Project(this, 'SourceProject', {
-      source: cb.Source.gitHub({
-        owner: 'otterley',
-        repo: 'multiarch-container-build-pipeline-test',
-        webhook: true
-      }),
-      artifacts: cb.Artifacts.s3({
-        bucket,
-        name: 'source.zip',
-        includeBuildId: false,
-        packageZip: true,
-        encryption: true
-      }),
-      buildSpec: cb.BuildSpec.fromObject({
-        version: '0.2',
-        phases: {
-          post_build: {
-            commands: [
-              'echo completed on `date`'
-            ]
-          }
-        },
-        artifacts: {
-          files: [
-            '**/*'
-          ]
-        }
-      })
-    });
+    if (!process.env.CODESTAR_CONNECTION_ARN) {
+      throw new Error('CODESTAR_CONNECTION_ARN is not set');
+    }
 
-    const sourceAction = new S3SourceAction({
-      actionName: 'S3',
-      bucket,
-      bucketKey: 'source.zip',
-      output: new Artifact(),
-      variablesNamespace: 'Source'
+    const sourceAction = new CodeStarConnectionsSourceAction({
+      connectionArn: process.env.CODESTAR_CONNECTION_ARN,
+      actionName: 'Source',
+      owner: 'otterley',
+      repo: 'multiarch-container-build-pipeline-test',
+      branch: 'main',
+      codeBuildCloneOutput: true,
+      output: new Artifact()
     });
 
     new Pipeline(this, 'Pipeline', {
       sourceAction,
       imageRepo,
-      architectures: [Architecture.Arm64, Architecture.X86_64],
-      imageTag: '#{Source.VersionId}'
+      architectures: [Architecture.Arm64, Architecture.X86_64]
     });
   }
 }

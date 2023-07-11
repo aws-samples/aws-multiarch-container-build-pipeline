@@ -1,14 +1,14 @@
-import * as cdk from '@aws-cdk/core';
-import * as cb from '@aws-cdk/aws-codebuild';
-import * as cp from '@aws-cdk/aws-codepipeline'; // eslint-disable-line no-unused-vars
-import * as actions from '@aws-cdk/aws-codepipeline-actions';
-import * as ecr from '@aws-cdk/aws-ecr'; // eslint-disable-line no-unused-vars
+import { Aws, Duration } from 'aws-cdk-lib';
+import { BuildEnvironmentVariable, BuildSpec, ComputeType, PipelineProject } from 'aws-cdk-lib/aws-codebuild';
+import { CodeBuildAction, CodeBuildActionType } from 'aws-cdk-lib/aws-codepipeline-actions';
 
-import { ArchitectureMap, DOCKER_IMAGE_NAME_FILE } from './codebuild';
+import { ArchitectureMap } from './codebuild';
+import { Artifact } from 'aws-cdk-lib/aws-codepipeline';
+import { Construct } from 'constructs';
+import { Repository } from 'aws-cdk-lib/aws-ecr';
 
 const DEFAULT_BUILD_PATH = '.';
-const DEFAULT_COMPUTE_TYPE = cb.ComputeType.LARGE;
-const DOCKER_IMAGE_ARTIFACT_BASEDIR = '/tmp';
+const DEFAULT_COMPUTE_TYPE = ComputeType.LARGE;
 
 interface BuildActionProps {
   arch: string,
@@ -17,19 +17,16 @@ interface BuildActionProps {
   buildPath?: string
 
   // Compute type used for build process
-  computeType?: cb.ComputeType
+  computeType?: ComputeType
 
   // Build timeout
-  timeout?: cdk.Duration
+  timeout?: Duration
 
   // Source artifact
-  source: cp.Artifact
-
-  // Docker image name artifact
-  dockerImage: cp.Artifact
+  source: Artifact
 
   // ECR repository
-  imageRepo: ecr.Repository
+  imageRepo: Repository
 
   // Docker Image Tag, defaults to output of `git describe --tags --always`
   imageTag?: string
@@ -38,10 +35,10 @@ interface BuildActionProps {
   dockerBuildArgs?: {[key:string]:string}
 }
 
-export class BuildAction extends actions.CodeBuildAction {
-  constructor(scope: cdk.Construct, id: string, props: BuildActionProps) {
-    const project = new cb.PipelineProject(scope, `BuildProject-${props.arch}`, {
-      buildSpec: cb.BuildSpec.fromObject(createBuildSpec(props)),
+export class BuildAction extends CodeBuildAction {
+  constructor(scope: Construct, id: string, props: BuildActionProps) {
+    const project = new PipelineProject(scope, `BuildProject-${props.arch}`, {
+      buildSpec: BuildSpec.fromObject(createBuildSpec(props)),
       environment: {
         buildImage: ArchitectureMap[props.arch],
         computeType: props.computeType || DEFAULT_COMPUTE_TYPE,
@@ -55,7 +52,7 @@ export class BuildAction extends actions.CodeBuildAction {
       props.imageRepo.grantPullPush(project.role);
     }
 
-    const environmentVariables: { [name:string]: cb.BuildEnvironmentVariable } = {};
+    const environmentVariables: { [name:string]: BuildEnvironmentVariable } = {};
     if (props.imageTag) {
       environmentVariables.IMAGE_TAG = {
         value: props.imageTag
@@ -67,8 +64,7 @@ export class BuildAction extends actions.CodeBuildAction {
       project,
       environmentVariables,
       input: props.source,
-      outputs: [props.dockerImage],
-      type: actions.CodeBuildActionType.BUILD
+      type: CodeBuildActionType.BUILD
     });
   };
 }
@@ -76,6 +72,9 @@ export class BuildAction extends actions.CodeBuildAction {
 const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } {
   const buildSpec = {
     version: '0.2',
+    env: {
+      'git-credential-helper': 'yes'
+    },
     phases: {
       pre_build: {
         commands: [
@@ -84,30 +83,20 @@ const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } 
       },
       build: {
         commands: [
-          ': ${IMAGE_TAG=$(git describe --tags --always)}', // eslint-disable-line no-template-curly-in-string
+          ': ${IMAGE_TAG=$(git describe --tags --always)}',
           'test -n "$IMAGE_TAG"', // fail if empty
           dockerBuildCommand(props),
           dockerPushCommand(props)
-        ]
-      },
-      post_build: {
-        commands: [
-          `echo ${imageTag(props)} > /${DOCKER_IMAGE_ARTIFACT_BASEDIR}/${DOCKER_IMAGE_NAME_FILE}`,
-          `echo Docker image: $(cat /${DOCKER_IMAGE_ARTIFACT_BASEDIR}/${DOCKER_IMAGE_NAME_FILE})`,
-          'echo Build completed on `date`'
-        ]
+        ],
+        'on-failure': 'ABORT'
       }
-    },
-    artifacts: {
-      files: [DOCKER_IMAGE_NAME_FILE],
-      'base-directory': DOCKER_IMAGE_ARTIFACT_BASEDIR
     }
   };
   return buildSpec;
 };
 
 const imageTag = function(props: BuildActionProps): string {
-  return `${props.imageRepo.repositoryUri}:$\{IMAGE_TAG\}-${props.arch}`; // eslint-disable-line no-useless-escape
+  return props.imageRepo.repositoryUri + ':${IMAGE_TAG}-' + props.arch;
 };
 
 const dockerBuildCommand = function(props: BuildActionProps): string {
@@ -123,7 +112,7 @@ const dockerBuildCommand = function(props: BuildActionProps): string {
 };
 
 const dockerLoginCommand = function(): string {
-  return `aws ecr get-login-password | docker login --username AWS --password-stdin ${cdk.Aws.ACCOUNT_ID}.dkr.ecr.${cdk.Aws.REGION}.amazonaws.com`;
+  return `aws ecr get-login-password | docker login --username AWS --password-stdin ${Aws.ACCOUNT_ID}.dkr.ecr.${Aws.REGION}.amazonaws.com`;
 };
 
 const dockerPushCommand = function(props: BuildActionProps): string {

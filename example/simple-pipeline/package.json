@@ -18,7 +18,11 @@
     "pipeline": "bin/pipeline.js"
   },
   "dependencies": {
-    "aws-cdk": "^1.83.0",
-    "typescript": "~4.1.3"
+    "aws-cdk": "^2.87.0",
+    "aws-multiarch-container-build-pipeline": "file:../..",
+    "typescript": "~5.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.1"
   }
 }

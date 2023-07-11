@@ -5,20 +5,18 @@
 This repository contains an [AWS Cloud Development Kit
 (CDK)](https://docs.aws.amazon.com/cdk/latest/guide/home.html) pattern library
 to help you create code pipelines that build multi-architecture container
-images. This can help you build container images that run on both Intel/AMD and
-Arm 64-bit architectures so you can take advantage of new technologies such as
-the recently-introduced EC2 instance families based on the AWS Graviton2
-processor.
+images. This can help you build container images that run on both x86
+(Intel/AMD) and arm64 architectures, allowing you to better utilize the growing
+portfolio of Amazon EC2 instance families.
 
-The [AWS Graviton2 processor](https://aws.amazon.com/ec2/graviton/) uses the Arm
-64-bit (arm64) architecture. It runs many workloads significantly faster than on
-legacy Intel/AMD 64-bit (amd64) processors, and the cost per instance-hour is
-significantly less expensive than Intel-based instances with the same vCPU count
-and memory. Many applications are easily adaptable to the arm64 architecture by
-simply recompiling the code. Scripts and applications based on compiled byte
-code can often be run without any modification by using a native arm64 runtime. For
-example, many Java applications can easily be run on Graviton2 instances using
-the arm64 build of [Amazon Corretto](https://aws.amazon.com/corretto/).
+The [AWS Graviton processor family](https://aws.amazon.com/ec2/graviton/) uses
+the Arm 64-bit (arm64) architecture. It provides up to 40% better
+price/performance vs. comparable X86-based compute. Many applications are easily
+adaptable to the arm64 architecture by simply recompiling the code. Programs
+written in scripting languages such as JavaScript, Ruby, and Python, and
+applications based on compiled byte code, such as Java and .NET, can usually be
+run without any modification by using a native arm64 runtime such as [Amazon
+Corretto](https://aws.amazon.com/corretto/).
 
 The Docker Image Manifest V2 specification allows container image repositories,
 including [Amazon ECR](https://aws.amazon.com/ecr/), to host images for multiple
@@ -27,7 +25,7 @@ receive the correct image for the host's CPU architecture. This pipeline library
 takes advantage of this functionality by constructing the multi-architecture
 manifest for you.
 
-## Theory of operations
+## Theory of operation
 
 This library builds a pipeline using [AWS
 CodePipeline](https://aws.amazon.com/codepipeline/) to produce an
@@ -59,19 +57,27 @@ import { Pipeline, Architecture } from 'aws-multiarch-container-build-pipeline';
 
 ### Source action
 
-Your application will need to create a CodePipeline source action. All of the
+Your application will need to create a CodePipeline source action. Many of the
 source actions provided by the [aws-codepipeline-actions
 library](https://docs.aws.amazon.com/cdk/api/latest/docs/aws-codepipeline-actions-readme.html)
-are supported, including BitBucket, CodeBuild, GitHub, and S3.
+are supported, including AWS CodeCommit, BitBucket, and GitHub. BitBucket and
+GitHub are supported **only** via the
+[`CodeStarConnectionsSourceAction`](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_codepipeline_actions.CodeStarConnectionsSourceAction.html)
+class. In the source action properties, ensure `codeBuildCloneOutput` is set to
+`true`.
 
-Here's a trivial example:
+Here's a simple example:
 
 ```ts
-const s3Source = new S3SourceAction({
-    actionName: 'S3',
-    bucket,
-    bucketKey: 'source.zip',
-    output: new Artifact()
+const sourceAction = new CodeStarConnectionsSourceAction({
+   connectionArn: process.env.CODESTAR_CONNECTION_ARN,
+   actionName: 'Source',
+   owner: 'mycompany',
+   repo: 'myapp',
+   branch: 'main',
+   // ensure this is set to `true` or CodeBuild won't be able to run `git` commands
+   codeBuildCloneOutput: true,
+   output: new Artifact()
 });
 ```
 
@@ -119,24 +125,6 @@ The following attributes can be passed to the pipeline constructor:
 | `buildTimeout`      | Build timeout                                                                                                                                                                 |           |
 | `testTimeout`       | Test timeout                                                                                                                                                                  |           |
 | `testBuildSpecPath` | Location of CodeBuild buildspec path used for test stage inside repository. Defaults to `./buildspec-test.yml`.                                                               |           |
-
-## Notes
-
-By default, the image tag will be either the latest Git tag (if the HEAD commit
-of the branch is tagged), the latest Git commit ID (if there are no tags
-reachable from the HEAD commit), or both (if HEAD is not tagged but a tag is
-reachable from the HEAD commit). This is consistent with best practice.
-
-AWS CodePipeline does not currently include the `.git` folder if you use
-CodeCommit, BitBucket, or GitHub as a source action. This will cause the
-automated tag generation to fail because the full commit history will not be
-accessible. As a workaround, we suggest using an S3 bucket for the source stage
-of the pipeline. Then, use a CodeBuild project to pull the source code from the
-Git repository and simply dump the output to the S3 bucket. This will preserve
-all the Git metadata.
-
-The example project included in this repository has an example of this design for
-reference.
 
 ## Example
 
