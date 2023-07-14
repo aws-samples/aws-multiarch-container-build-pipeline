@@ -8,7 +8,7 @@ import { Construct } from 'constructs';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
 
 const DEFAULT_BUILD_PATH = '.';
-const DEFAULT_COMPUTE_TYPE = ComputeType.LARGE;
+const DEFAULT_COMPUTE_TYPE = ComputeType.SMALL;
 
 interface BuildActionProps {
   arch: string,
@@ -66,7 +66,7 @@ export class BuildAction extends CodeBuildAction {
       input: props.source,
       type: CodeBuildActionType.BUILD
     });
-  };
+  }
 }
 
 const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } {
@@ -83,6 +83,7 @@ const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } 
       },
       build: {
         commands: [
+          // eslint-disable-next-line no-template-curly-in-string
           ': ${IMAGE_TAG=$(git describe --tags --always)}',
           'test -n "$IMAGE_TAG"', // fail if empty
           dockerBuildCommand(props),
@@ -96,6 +97,7 @@ const createBuildSpec = function(props: BuildActionProps): { [key:string]:any } 
 };
 
 const imageTag = function(props: BuildActionProps): string {
+  // eslint-disable-next-line no-template-curly-in-string
   return props.imageRepo.repositoryUri + ':${IMAGE_TAG}-' + props.arch;
 };
 

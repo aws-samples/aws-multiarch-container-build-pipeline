@@ -8,7 +8,10 @@ import { Artifact } from 'aws-cdk-lib/aws-codepipeline';
 import { Construct } from 'constructs';
 import { Repository } from 'aws-cdk-lib/aws-ecr';
 
-const DEFAULT_COMPUTE_TYPE = ComputeType.LARGE;
+const DEFAULT_COMPUTE_TYPE = ComputeType.SMALL;
+
+export const Namespace = 'Manifest';
+export const DockerImageEnvVar = 'DockerImage';
 
 interface BuildManifestActionProps {
   architectures: Architecture[]
@@ -58,9 +61,10 @@ export class BuildManifestAction extends CodeBuildAction {
       project,
       environmentVariables,
       input: props.source,
-      type: CodeBuildActionType.BUILD
+      type: CodeBuildActionType.BUILD,
+      variablesNamespace: Namespace
     });
-  };
+  }
 }
 
 const createBuildSpec = function(props: BuildManifestActionProps): { [key:string]:any } {
@@ -70,7 +74,10 @@ const createBuildSpec = function(props: BuildManifestActionProps): { [key:string
       'git-credential-helper': 'yes',
       variables: {
         DOCKER_CLI_EXPERIMENTAL: 'enabled'
-      }
+      },
+      'exported-variables': [
+        DockerImageEnvVar
+      ]
     },
     phases: {
       pre_build: {
@@ -80,6 +87,7 @@ const createBuildSpec = function(props: BuildManifestActionProps): { [key:string
       },
       build: {
         commands: [
+          // eslint-disable-next-line no-template-curly-in-string
           ': ${IMAGE_TAG=$(git describe --tags --always)}',
           'test -n "$IMAGE_TAG"', // fail if empty
           `TAG=${props.imageRepo.repositoryUri}:$IMAGE_TAG`,
@@ -92,6 +100,7 @@ const createBuildSpec = function(props: BuildManifestActionProps): { [key:string
         commands: [
           'docker manifest inspect $TAG',
           'docker manifest push $TAG',
+          `export ${DockerImageEnvVar}=$TAG`,
           'echo Build completed on `date`'
         ]
       }
@@ -101,6 +110,7 @@ const createBuildSpec = function(props: BuildManifestActionProps): { [key:string
 };
 
 const dockerManifestCreateCommand = function(props: BuildManifestActionProps): string {
+  // eslint-disable-next-line no-template-curly-in-string
   return 'docker manifest create $TAG ' + props.architectures.map(arch => '${TAG}-' + arch).join(' ');
 };
 

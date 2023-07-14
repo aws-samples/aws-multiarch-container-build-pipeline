@@ -1,5 +1,5 @@
-import { Artifact, Pipeline as CodePipeline } from 'aws-cdk-lib/aws-codepipeline';
-import { CodeBuildAction, CodeStarConnectionsSourceAction, S3SourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
+import { Artifact, Pipeline as CodePipeline, IStage, StageOptions } from 'aws-cdk-lib/aws-codepipeline';
+import { CodeBuildAction, CodeStarConnectionsSourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
 
 import { BuildAction } from './build-action';
 import { BuildManifestAction } from './build-manifest';
@@ -19,7 +19,7 @@ export enum Architecture {
 
 const DEFAULT_ARCHITECTURES = [Architecture.X86_64];
 
-interface PipelineProps {
+interface BuildReleasePipelineProps {
   // A source action
   sourceAction: CodeBuildAction | CodeStarConnectionsSourceAction
 
@@ -53,14 +53,14 @@ interface PipelineProps {
   computeType?: ComputeType
 }
 
-export class Pipeline extends Construct {
+export class BuildReleasePipeline extends Construct {
   public pipeline: CodePipeline;
 
-  constructor(scope: Construct, id: string, props: PipelineProps) {
+  constructor(scope: Construct, id: string, props: BuildReleasePipelineProps) {
     super(scope, id);
 
     let sourceArtifact: Artifact;
-    const sourceArtifacts = props.sourceAction.actionProperties.outputs || [];
+    const sourceArtifacts = props.sourceAction.actionProperties.outputs ?? [];
     if (sourceArtifacts.length === 1) {
       sourceArtifact = sourceArtifacts[0];
     } else {
@@ -85,7 +85,7 @@ export class Pipeline extends Construct {
         ...props,
         arch,
         timeout: props.buildTimeout,
-        source: sourceArtifact,
+        source: sourceArtifact
       });
     }
 
@@ -101,7 +101,7 @@ export class Pipeline extends Construct {
         ...props,
         arch,
         timeout: props.testTimeout,
-        source: sourceArtifact,
+        source: sourceArtifact
       });
       testActions[arch] = action;
     }
@@ -121,5 +121,9 @@ export class Pipeline extends Construct {
         })
       ]
     });
+  }
+
+  public addStage(props: StageOptions): IStage {
+    return this.pipeline.addStage(props);
   }
 }

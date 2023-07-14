@@ -2,10 +2,10 @@
 import 'source-map-support/register';
 
 import { App, Stack, StackProps } from 'aws-cdk-lib';
-import { Architecture, Pipeline } from 'aws-multiarch-container-build-pipeline';
+import { Architecture, BuildReleasePipeline } from 'aws-multiarch-container-build-pipeline';
 
 import { Artifact } from 'aws-cdk-lib/aws-codepipeline';
-import { CodeBuildAction, CodeCommitSourceAction, CodeStarConnectionsSourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
+import { CodeStarConnectionsSourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
 import { Construct } from 'constructs';
 import { Repository as ImageRepository } from 'aws-cdk-lib/aws-ecr';
 
@@ -33,7 +33,7 @@ class PipelineStack extends Stack {
       output: new Artifact()
     });
 
-    new Pipeline(this, 'Pipeline', {
+    new BuildReleasePipeline(this, 'Pipeline', {
       sourceAction,
       imageRepo,
       architectures: [Architecture.Arm64, Architecture.X86_64]
@@ -41,4 +41,4 @@ class PipelineStack extends Stack {
   }
 }
 
-new PipelineStack(app, 'Stack');
+new PipelineStack(app, 'SimpleMultiarchPipelineDemo');

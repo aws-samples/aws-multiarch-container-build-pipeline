@@ -13,3 +13,6 @@ cdk.out
 
 # Editor cruft
 *~
+
+# CDK context
+cdk.context.json

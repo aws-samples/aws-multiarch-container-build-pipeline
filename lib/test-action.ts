@@ -52,5 +52,5 @@ export class TestAction extends CodeBuildAction {
       input: props.source,
       type: CodeBuildActionType.BUILD
     });
-  };
+  }
 }
