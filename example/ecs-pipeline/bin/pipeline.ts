@@ -16,10 +16,15 @@ class EcsPipelineStack extends Stack {
         input: CodePipelineSource.connection('aws-samples/aws-multiarch-container-build-pipeline', 'use-cdk-pipelines', {
           connectionArn: getCodeStarConnectionArn()
         }),
-        commands: [
-          'cd example/ecs-pipeline',
+        installCommands: [
+          'npm i -g npm@9.5.1',
           'npm ci',
-          'pwd && npm run build',
+          'cd ${CODEBUILD_SRC_DIR}/example/ecs-pipeline', // eslint-disable-line no-template-curly-in-string
+          'npm ci'
+        ],
+        commands: [
+          'cd ${CODEBUILD_SRC_DIR}/example/ecs-pipeline', // eslint-disable-line no-template-curly-in-string
+          'npm run build',
           'npx cdk synth'
         ]
       })
