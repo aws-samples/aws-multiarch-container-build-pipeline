@@ -1,7 +1,7 @@
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 
 import { ARecord, CfnRecordSet, IHostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
-import { Aspects, CfnParameter, IAspect, Stack, Tag } from 'aws-cdk-lib';
+import { Aspects, CfnParameter, IAspect, Stack, Stage, StageProps, Tag } from 'aws-cdk-lib';
 import { Construct, IConstruct } from 'constructs';
 import { IVpc, InstanceClass, InstanceSize, InstanceType, Port, SubnetType, Vpc } from 'aws-cdk-lib/aws-ec2';
 
@@ -13,7 +13,6 @@ import { LoadBalancerTarget } from 'aws-cdk-lib/aws-route53-targets';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 const DefaultImage = 'public.ecr.aws/nginx/nginx:1.24.0';
-
 export interface ClusterProps {
   hostedZone: IHostedZone;
   env: ApplicationEnvironment
@@ -187,5 +186,21 @@ class ServiceInstance extends Construct {
     this.taskDefinition = service.taskDefinition;
     this.loadBalancer = service.loadBalancer;
     this.autoScalingGroup.connections.allowFrom(service.loadBalancer, Port.allTcp(), 'Allow HTTP traffic');
+  }
+}
+
+export interface ClusterStageProps extends StageProps {
+  appEnv: ApplicationEnvironment;
+  hostedZone: IHostedZone;
+}
+
+export class ClusterStage extends Stage {
+  constructor(scope: Construct, id: string, props: ClusterStageProps) {
+    super(scope, id, props);
+
+    new ClusterStack(this, 'Cluster', {
+      env: props.appEnv,
+      hostedZone: props.hostedZone
+    });
   }
 }

@@ -3,7 +3,10 @@ import 'source-map-support/register';
 import { App, Stack, StackProps } from 'aws-cdk-lib';
 import { CodePipeline, CodePipelineSource, ShellStep } from 'aws-cdk-lib/pipelines';
 import { Construct } from 'constructs';
-import { getCodeStarConnectionArn } from '../lib/envvars';
+import { getCodeStarConnectionArn, getDomainName } from '../lib/envvars';
+import { ClusterStage } from '../lib/cluster';
+import { ApplicationEnvironment } from '../lib/environment';
+import { HostedZone } from 'aws-cdk-lib/aws-route53';
 
 const app = new App();
 
@@ -11,11 +14,15 @@ class EcsPipelineStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    new CodePipeline(this, 'Pipeline', {
+    const pipeline = new CodePipeline(this, 'Pipeline', {
       synth: new ShellStep('Synth', {
         input: CodePipelineSource.connection('aws-samples/aws-multiarch-container-build-pipeline', 'use-cdk-pipelines', {
           connectionArn: getCodeStarConnectionArn()
         }),
+        env: {
+          CODESTAR_CONNECTION_ARN: getCodeStarConnectionArn(),
+          DOMAIN_NAME: getDomainName()
+        },
         installCommands: [
           'npm i -g npm@9.5.1',
           'npm ci',
@@ -26,9 +33,17 @@ class EcsPipelineStack extends Stack {
           'cd ${CODEBUILD_SRC_DIR}/example/ecs-pipeline', // eslint-disable-line no-template-curly-in-string
           'npm run build',
           'npx cdk synth'
-        ]
+        ],
+        primaryOutputDirectory: 'example/ecs-pipeline/cdk.out'
       })
     });
+
+    pipeline.addStage(new ClusterStage(this, 'TestCluster', {
+      appEnv: ApplicationEnvironment.TEST,
+      hostedZone: HostedZone.fromLookup(this, 'TestZone', {
+        domainName: getDomainName()
+      })
+    }));
   }
 }
 
@@ -66,14 +81,14 @@ new EcsPipelineStack(app, 'EcsPipelineStack', {
 //     });
 
 //     const testCluster = new ClusterStack(this, 'Test', {
-//       hostedZone: HostedZone.fromLookup(this, 'ProdZone', {
+//       hostedZone: HostedZone.fromLookup(this, 'TestZone', {
 //         domainName: getDomainName()
 //       }),
 //       env: ApplicationEnvironment.TEST
 //     });
 
 //     const prodCluster = new ClusterStack(this, 'Prod', {
-//       hostedZone: HostedZone.fromLookup(this, 'TestZone', {
+//       hostedZone: HostedZone.fromLookup(this, 'ProdZone', {
 //         domainName: getDomainName()
 //       }),
 //       env: ApplicationEnvironment.PROD
