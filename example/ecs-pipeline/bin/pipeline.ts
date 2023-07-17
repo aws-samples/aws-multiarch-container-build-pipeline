@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import { App, Stack, StackProps } from 'aws-cdk-lib';
-import { CodePipeline, CodePipelineSource, ShellStep } from 'aws-cdk-lib/pipelines';
+import { CodeBuildStep, CodePipeline, CodePipelineSource, ShellStep } from 'aws-cdk-lib/pipelines';
 import { Construct } from 'constructs';
 import { getCodeStarConnectionArn, getDomainName } from '../lib/envvars';
 import { ClusterStage } from '../lib/cluster';
 import { ApplicationEnvironment } from '../lib/environment';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { BuildSpec } from 'aws-cdk-lib/aws-codebuild';
 
 const app = new App();
 
@@ -15,14 +17,27 @@ class EcsPipelineStack extends Stack {
     super(scope, id, props);
 
     const pipeline = new CodePipeline(this, 'Pipeline', {
-      synth: new ShellStep('Synth', {
+
+      codeBuildDefaults: {
+        partialBuildSpec: BuildSpec.fromObject({
+          env: {
+            variables: {
+              CODESTAR_CONNECTION_ARN: getCodeStarConnectionArn(),
+              DOMAIN_NAME: getDomainName()
+            }
+          }
+        }),
+        rolePolicy: [
+          new PolicyStatement({
+            actions: ['sts:AssumeRole'],
+            resources: ['*']
+          })
+        ]
+      },
+      synth: new CodeBuildStep('Synth', {
         input: CodePipelineSource.connection('aws-samples/aws-multiarch-container-build-pipeline', 'use-cdk-pipelines', {
           connectionArn: getCodeStarConnectionArn()
         }),
-        env: {
-          CODESTAR_CONNECTION_ARN: getCodeStarConnectionArn(),
-          DOMAIN_NAME: getDomainName()
-        },
         installCommands: [
           'npm i -g npm@9.5.1',
           'npm ci',
