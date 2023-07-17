@@ -19,7 +19,7 @@ class EcsPipelineStack extends Stack {
         commands: [
           'cd example/ecs-pipeline',
           'npm ci',
-          'npm run build',
+          'pwd && npm run build',
           'npx cdk synth'
         ]
       })
